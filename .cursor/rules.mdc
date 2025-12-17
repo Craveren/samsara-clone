@@ -1,0 +1,66 @@
+# WOODPECKER PROJECT RULES
+
+## Project Overview
+Building Woodpecker by transforming Plura repository into a legacy preservation platform.
+
+## Base Repository
+- **Plura**: denvudd/plura (GitHub) or local ../plura directory
+- Use Plura as the foundation and adapt all features to Woodpecker
+
+## Transformation Strategy
+1. **Copy Structure**: Use Plura's monorepo structure
+2. **Adapt Features**: Transform Plura features to Woodpecker needs
+3. **Keep Patterns**: Maintain Plura's code patterns and best practices
+4. **Add Woodpecker**: Add legacy-specific features
+
+## Key Transformations
+
+### Plura → Woodpecker Mappings
+- **Projects** → **Legacies**
+- **Kanban** → **Estate Planning Tasks**
+- **Users** → **Clients/Professionals/Executors**
+- **Payments** → **PayFast (SA) instead of Stripe**
+- **Auth** → **Clerk with Woodpecker roles**
+
+### New Woodpecker Features
+- Memory Galaxy (3D visualization)
+- Midnight Interview (voice stories)
+- Document Vault (wills, trusts, etc.)
+- Execution Service (post-death workflow)
+- Family Portal (beneficiary access)
+
+## Tech Stack (from Plura)
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Prisma (database)
+- Clerk (auth)
+- PayFast (payments - SA)
+
+## Development Workflow
+1. Read Plura file using `read_plura_file` MCP tool
+2. Understand Plura's implementation
+3. Transform to Woodpecker using `transform_plura_to_woodpecker` tool
+4. Implement in Woodpecker structure
+5. Test and iterate
+
+## File Structure (Plura-based)
+```
+woodpecker/
+├── apps/
+│   ├── web/          # Main consumer app (from Plura web)
+│   ├── pro/          # Professional portal (new)
+│   └── admin/        # Admin dashboard (from Plura admin)
+├── packages/
+│   ├── ui/           # Shared components (from Plura)
+│   ├── database/     # Prisma schema (transformed from Plura)
+│   ├── utils/        # Shared utilities (from Plura)
+│   └── payments/     # PayFast integration (transformed from Plura Stripe)
+└── tooling/          # Configs (from Plura)
+```
+
+## Cursor Commands
+- `@cursor Read Plura file: src/components/kanban/Board.tsx`
+- `@cursor Transform Plura kanban to Woodpecker tasks`
+- `@cursor Get Plura structure and create Woodpecker equivalent`
+- `@cursor Copy Plura auth setup and adapt for Woodpecker roles`

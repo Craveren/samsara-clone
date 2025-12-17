@@ -1,0 +1,21 @@
+{
+    "colors": {
+      "bg": "#050816",
+      "surface": "#10131c",
+      "primary": "#f5ff3b",
+      "accent": "#00e5ff",
+      "text": "#f9fafb",
+      "muted": "#9ca3af"
+    },
+    "radius": {
+      "md": "0.75rem",
+      "lg": "1.25rem",
+      "xl": "1.75rem"
+    },
+    "spacing": {
+      "sm": "0.5rem",
+      "md": "1rem",
+      "lg": "1.5rem"
+    }
+  }
+  

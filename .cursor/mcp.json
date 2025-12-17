@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "servers": {
+    "filesystem": {
+      "type": "builtin",
+      "command": "filesystem"
+    },
+    "terminal": {
+      "type": "builtin",
+      "command": "terminal"
+    },
+    "http": {
+      "type": "builtin",
+      "command": "http"
+    },
+
+    "kendo_ui_generator": {
+      "type": "http",
+      "config": {
+        "url": "https://uiagent.mcp.telerik.com/mcp/react",
+        "headers": {
+          "Authorization": "kWCrVDOug0qdg0MFh1QIqw==.UKCb5LQ6BRPFue+K1QhjBqxj1yyPEZnrUmh0LjTYx0sZQK2w0c0ywrJ5DpDTWEFvgPDKPax1ERXR132qqFwVLQ=="
+        }
+      }
+    },
+
+    "mcp_ui_poc": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3001"
+      }
+    },
+
+    "coderabbit": {
+      "type": "http",
+      "config": {
+        "url": "https://api.coderabbit.ai/v1/mcp",
+        "headers": {
+          "Authorization": "cr-56e926df1ee7d17d1504522df501a19faf934911c54419f3b9add85774",
+          "Content-Type": "application/json"
+        }
+      }
+    },
+
+    "clerk": {
+      "type": "process",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-clerk"],
+      "env": {
+        "CLERK_SECRET_KEY": "sk_test_WJPelBdc6qj6JtTNJLx88s4fQBLMABiiYXMQLykYMK",
+        "CLERK_PUBLISHABLE_KEY": "pk_test_ZHluYW1pYy1wbGF0eXB1cy05Ny5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    },
+
+    "shadcn": {
+      "type": "http",
+      "config": {
+        "url": "https://www.shadcn.io/api/mcp"
+      }
+    },
+
+    "sentry": {
+      "type": "http",
+      "config": {
+        "url": "https://mcp.sentry.io/api/v1",
+        "headers": {
+          "Authorization": "fc4e0d04d2a711f08156aa12db103177",
+          "Content-Type": "application/json"
+        }
+      }
+    },
+
+    "plura_ai": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3008"
+      }
+    },
+
+    "plura_layout": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3009"
+      }
+    },
+
+    "sa_payments": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3010"
+      }
+    },
+
+    "easyid_banks": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3011"
+      }
+    },
+
+    "expert_chat": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3012"
+      }
+    },
+
+    "tremor_charts": {
+      "type": "http",
+      "config": {
+        "url": "http://localhost:3013"
+      }
+    },
+
+    "neon": {
+      "type": "http",
+      "config": {
+        "url": "https://mcp.neon.tech/mcp",
+        "headers": {}
+      }
+    }
+  }
+}

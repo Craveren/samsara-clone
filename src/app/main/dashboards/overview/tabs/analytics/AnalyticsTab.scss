@@ -1,0 +1,168 @@
+.analytics-page {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 8px;
+}
+
+.analytics-header {
+  padding: 16px 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.analytics-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 12px;
+}
+
+.analytics-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.analytics-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.analytics-card-left {
+  flex: 1;
+}
+
+.analytics-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.analytics-card-amount {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.analytics-card-pill {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.analytics-card-description {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.analytics-chart-container {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.analytics-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .analytics-page {
+    padding: 0 12px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .analytics-card {
+    padding: 18px;
+    min-height: 300px;
+  }
+
+  .analytics-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .analytics-card-pill {
+    align-self: flex-start;
+  }
+
+  .analytics-chart-container {
+    min-height: 180px;
+  }
+
+  .analytics-chart {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-page {
+    padding: 0 8px;
+  }
+
+  .analytics-grid {
+    gap: 8px;
+  }
+
+  .analytics-card {
+    padding: 16px;
+    min-height: 280px;
+  }
+
+  .analytics-chart-container {
+    min-height: 160px;
+  }
+
+  .analytics-chart {
+    min-height: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-title {
+    font-size: 20px;
+  }
+
+  .analytics-card-title {
+    font-size: 18px;
+  }
+
+  .analytics-card-description {
+    font-size: 13px;
+  }
+}
