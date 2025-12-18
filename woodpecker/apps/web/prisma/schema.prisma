@@ -1,0 +1,671 @@
+// Woodpecker Database Schema
+// Transformed from Plura
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE MODELS (Transformed from Plura)
+// ============================================
+
+// Legacy (was Project in Plura)
+model Legacy {
+  id          String       @id @default(cuid())
+  name        String
+  clientId    String
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  description String?
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  // Relations
+  tasks       EstateTask[]
+  memories    Memory[]
+  documents   Document[]
+  beneficiaries Beneficiary[]
+  executions  Execution[]
+  invitations Invitation[]
+  
+  // Professional access
+  professionalId String?
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  
+  // Executor access (only if invited)
+  executorId     String?
+  executor       Executor? @relation("ExecutorLegacies", fields: [executorId], references: [id])
+  
+  // Metadata
+  completionPercentage Int      @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([clientId])
+  @@index([organizationId])
+  @@index([professionalId])
+  @@index([executorId])
+}
+
+// Estate Task (was Task in Plura)
+model EstateTask {
+  id          String   @id @default(cuid())
+  legacyId    String
+  legacy      Legacy   @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  status      String   @default("backlog") // backlog | todo | in-progress | done
+  
+  // Woodpecker-specific fields
+  assignee   String?
+  beneficiary String?
+  documentId  String?
+  deadlineType String?  // legal | personal | financial
+  dueDate     DateTime?
+  
+  // Metadata
+  position    Int      @default(0) // For kanban ordering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([status])
+}
+
+// Client (was User in Plura, but more specific)
+model Client {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique // Links to Clerk auth
+  email       String   @unique
+  name        String?
+  avatarUrl   String?
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  // Relations
+  legacies    Legacy[]
+  
+  // Subscription
+  subscriptionTier String? // free | builder | family | professional
+  subscriptionStatus String? // active | cancelled | expired
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([organizationId])
+  @@index([email])
+}
+
+// Professional (Lawyer/Advisor)
+model Professional {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  firmName    String?
+  licenseNumber String?
+  role        String   @default("lawyer") // lawyer | agency | financial-advisor | estate-planner
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  // Relations
+  clientLegacies Legacy[] // Legacies they manage
+  invitations    Invitation[] // Invitations they've sent
+  receivedInvitations Invitation[] @relation("InvitationRecipient")
+  
+  // Team/Sub-account relations
+  teamMembers     TeamMember[] @relation("TeamMembers") // Sub-accounts this professional manages
+  parentTeam      TeamMember?  @relation("ParentTeam") // If this is a sub-account, link to parent
+  
+  // Subscription
+  subscriptionTier String? // solo | firm | enterprise
+  subscriptionStatus String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([organizationId])
+  @@index([role])
+}
+
+// Team Member (Sub-account for professionals)
+model TeamMember {
+  id            String   @id @default(cuid())
+  professionalId String  // Parent professional
+  professional  Professional @relation("TeamMembers", fields: [professionalId], references: [id], onDelete: Cascade)
+  
+  subAccountId  String   @unique // The sub-account Professional ID
+  subAccount    Professional @relation("ParentTeam", fields: [subAccountId], references: [id], onDelete: Cascade)
+  
+  role          String   @default("member") // member | admin | manager
+  permissions   String[] // Custom permissions array
+  status        String   @default("active") // active | inactive | pending
+  
+  invitedBy     String?  // Clerk ID of who invited them
+  invitedAt     DateTime @default(now())
+  joinedAt      DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([professionalId])
+  @@index([subAccountId])
+  @@unique([professionalId, subAccountId])
+}
+
+// Executor (can only access when invited)
+model Executor {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  name        String?
+  
+  // Relations - executors only see invited legacies
+  invitedLegacies Legacy[] @relation("ExecutorLegacies")
+  invitations     Invitation[] @relation("ExecutorInvitations")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+}
+
+// Invitation system
+model Invitation {
+  id          String   @id @default(cuid())
+  
+  // Who sent it
+  inviterId   String   // Client or Professional Clerk ID
+  inviterType String   // client | professional
+  
+  // Who it's for
+  recipientEmail String
+  recipientId    String? // Clerk ID if they've signed up
+  recipientType  String  // lawyer | executor | agency
+  
+  // What they're invited to
+  legacyId   String?
+  legacy     Legacy?  @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  // Access level
+  accessLevel String  @default("view") // view | edit | full
+  
+  // Status
+  status     String   @default("pending") // pending | accepted | rejected | expired
+  token      String   @unique // Unique invitation token
+  
+  // Professional/Executor relations
+  professionalId String?
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  
+  recipientProfessionalId String?
+  recipientProfessional   Professional? @relation("InvitationRecipient", fields: [recipientProfessionalId], references: [id])
+  
+  executorId     String?
+  executor       Executor? @relation("ExecutorInvitations", fields: [executorId], references: [id])
+  
+  // Dates
+  expiresAt   DateTime?
+  acceptedAt  DateTime?
+  rejectedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([recipientEmail])
+  @@index([token])
+  @@index([status])
+  @@index([legacyId])
+}
+
+// ============================================
+// NEW WOODPECKER MODELS
+// ============================================
+
+// Memory (Voice Stories)
+model Memory {
+  id          String   @id @default(cuid())
+  legacyId    String
+  legacy      Legacy   @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  audioUrl    String?
+  transcript  String?
+  photos      String[] // Array of image URLs
+  
+  // Scheduled release
+  scheduledRelease DateTime?
+  releasedTo      String[] // Array of user IDs who can access
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([scheduledRelease])
+}
+
+// Document (Wills, Trusts, etc.)
+model Document {
+  id          String   @id @default(cuid())
+  legacyId    String
+  legacy      Legacy   @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  name        String
+  fileUrl     String
+  category    String   // will | trust | healthcare | financial | property | personal
+  status      String   @default("draft") // draft | signed | expired | revoked
+  
+  // Sharing
+  sharedWith  String[] // Array of user IDs
+  accessLevel String   @default("view") // view | edit | full
+  
+  // Metadata
+  fileSize    Int?
+  mimeType    String?
+  signedAt    DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([category])
+  @@index([status])
+}
+
+// Beneficiary
+model Beneficiary {
+  id          String   @id @default(cuid())
+  legacyId    String
+  legacy      Legacy   @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  name        String
+  email       String?
+  relationship String // spouse | child | parent | sibling | friend | other
+  phone       String?
+  
+  // Allocation
+  allocation  Float?   // Percentage (0-100) or fixed amount
+  allocationType String? // percentage | fixed
+  
+  // Contact info (JSON for flexibility)
+  contactInfo Json?
+  
+  // Access
+  hasAccess   Boolean  @default(false)
+  accessToken String?  @unique // For family portal access
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([email])
+}
+
+// Execution (Post-death workflow)
+model Execution {
+  id          String   @id @default(cuid())
+  legacyId    String
+  legacy      Legacy   @relation(fields: [legacyId], references: [id], onDelete: Cascade)
+  
+  executorId  String   // Clerk user ID of executor
+  executorName String?
+  executorEmail String?
+  
+  status      String   @default("pending") // pending | verified | in-progress | completed | cancelled
+  
+  // Verification
+  deathVerified Boolean @default(false)
+  deathCertificateUrl String?
+  verifiedAt  DateTime?
+  verifiedBy  String?   // Professional who verified
+  
+  // Timeline
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // Service tier
+  serviceTier String?   // basic | full | premium
+  serviceCost Float?
+  
+  // Steps completed
+  stepsCompleted String[] // Array of step IDs
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([executorId])
+  @@index([status])
+}
+
+// Transmission (Scheduled releases)
+model Transmission {
+  id          String   @id @default(cuid())
+  legacyId    String
+  memoryId    String?
+  documentId  String?
+  
+  recipientId String  // Beneficiary or user ID
+  recipientEmail String?
+  
+  scheduledDate DateTime
+  status        String  @default("scheduled") // scheduled | sent | failed
+  
+  sentAt        DateTime?
+  openedAt      DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([legacyId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+// Subscription (PayFast integration)
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String   // Client or Professional ID
+  userType    String   // client | professional
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  tier        String   // builder | family | professional | solo | firm | enterprise
+  status      String   // active | cancelled | expired | past_due
+  
+  // PayFast
+  payfastSubscriptionId String?
+  payfastToken String?
+  
+  // Billing
+  amount      Float
+  currency    String   @default("ZAR") // South African Rand
+  interval    String   // monthly | yearly
+  
+  // Relations
+  payments    Payment[]
+  
+  // Dates
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAt           DateTime?
+  cancelledAt        DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+// Payment (PayFast transactions)
+model Payment {
+  id          String   @id @default(cuid())
+  subscriptionId String?
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  
+  userId      String
+  amount      Float
+  currency    String   @default("ZAR")
+  
+  // PayFast
+  payfastPaymentId String? @unique
+  payfastSignature String?
+  
+  status      String   // pending | completed | failed | refunded
+  
+  // Metadata
+  itemName    String?
+  description String?
+  
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([payfastPaymentId])
+}
+
+// ============================================
+// FINANCIAL ENGINE MODELS (PLATHAGORA)
+// ============================================
+
+// Bank Account (Stitch integration)
+model BankAccount {
+  id          String   @id @default(cuid())
+  userId      String   // Client Clerk ID
+  userType    String   @default("client") // client | professional
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  // Stitch data
+  stitchAccountId String? @unique
+  stitchAccessToken String? // Encrypted in production
+  stitchLinkToken String?
+  
+  // Account info
+  accountName String
+  accountType String // checking | savings | credit | investment
+  bankName    String?
+  accountNumber String? // Last 4 digits only
+  balance     Float?
+  currency    String   @default("ZAR")
+  
+  // Status
+  status      String   @default("connected") // connected | disconnected | error
+  lastSyncedAt DateTime?
+  
+  // Relations
+  transactions Transaction[]
+  financialProfile FinancialProfile?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([stitchAccountId])
+}
+
+// Transaction (from bank statements or manual entry)
+model Transaction {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  // Transaction data
+  transactionId String? @unique // From Stitch or manual
+  date        DateTime
+  amount      Float
+  currency    String   @default("ZAR")
+  category    String?  // food | transport | entertainment | income | etc
+  subcategory String?
+  description String?
+  merchant    String?
+  
+  // Type
+  type        String   // income | expense | transfer
+  isRecurring Boolean  @default(false)
+  
+  // Metadata
+  tags        String[] // Array of tags
+  notes       String?
+  
+  // Source
+  source      String   @default("manual") // manual | stitch | pdf_upload
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([accountId])
+  @@index([date])
+  @@index([category])
+  @@index([type])
+  @@index([transactionId])
+}
+
+// Financial Profile (user's financial summary)
+model FinancialProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique // Client Clerk ID
+  accountId   String? @unique
+  account     BankAccount? @relation(fields: [accountId], references: [id])
+  
+  // User data for AI analysis
+  age         Int?
+  location    String?
+  occupation  String?
+  skills      String[] // Array of user skills
+  
+  // Financial summary
+  monthlyIncome Float?
+  monthlyExpenses Float?
+  savingsRate   Float? // Percentage
+  totalSavings  Float?
+  
+  // AI Insights (from Gemini)
+  ageGroup     String? // teen | student | young_adult | adult | senior
+  lifestyleType String? // impulsive_spender | minimalist_saver | etc
+  financialHealthScore Int? // 0-100
+  
+  // Last analysis
+  lastAnalyzedAt DateTime?
+  
+  // Relations
+  insights    FinancialInsight[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// Financial Insight (AI-generated insights from Gemini)
+model FinancialInsight {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  // AI Analysis Results (JSON from Gemini)
+  insights    Json     // Array of insight strings
+  skills      Json     // Array of recommended skills
+  earningOpportunities Json // Array of opportunities
+  warnings    Json     // Array of warnings
+  weeklyRoutine String? // Weekly routine recommendation
+  
+  // Savings projections
+  projected30Days Float?
+  projected60Days Float?
+  projected90Days Float?
+  
+  // Analysis metadata
+  analyzedAt  DateTime @default(now())
+  dataSnapshot Json? // Snapshot of data used for analysis
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([profileId])
+  @@index([analyzedAt])
+}
+
+// ============================================
+// COMMUNICATION MODELS
+// ============================================
+
+// Conversation (between users)
+model Conversation {
+  id          String   @id @default(cuid())
+  participant1Id String // Clerk user ID
+  participant2Id String // Clerk user ID
+  
+  // Metadata
+  lastMessageAt DateTime?
+  lastMessage   String?
+  unreadCount1  Int      @default(0) // Unread count for participant1
+  unreadCount2  Int      @default(0) // Unread count for participant2
+  
+  // Relations
+  messages     Message[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([participant1Id, participant2Id])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([lastMessageAt])
+}
+
+// Message (within a conversation)
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderId       String   // Clerk user ID
+  text           String
+  read           Boolean  @default(false)
+  readAt         DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// ACTIVITY FEED MODEL
+// ============================================
+
+// Activity (user activity feed)
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String   // Clerk user ID
+  userType    String   @default("client") // client | lawyer | financial-advisor | agency
+  
+  // Multi-tenancy: Clerk Organization ID
+  organizationId String? // Clerk organization ID for tenant isolation
+  
+  // Activity data
+  type        String   // account_added | transaction_created | document_uploaded | legacy_updated | etc
+  title       String
+  description String?
+  icon        String?  // Icon name
+  color       String?  // Color class
+  link        String?  // Link to related resource
+  
+  // Related resource
+  resourceType String? // account | transaction | document | legacy | etc
+  resourceId   String? // ID of related resource
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+}
+
